@@ -1,0 +1,44 @@
+name: Orbite Build CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build QEMU Orbite & Payload
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git ninja-build meson pkg-config libglib2.0-dev libpixman-1-dev \
+            flex bison nasm
+
+      - name: Build Assembly Payload
+        run: |
+          if [ -f payloads/test_payload.asm ]; then
+            nasm -f bin payloads/test_payload.asm -o /tmp/test_payload.bin
+            echo "Payload successfully compiled."
+          else
+            echo "No payload found, skipping."
+          fi
+
+      - name: Configure QEMU
+        run: |
+          ./configure \
+            --target-list=x86_64-softmmu \
+            --enable-debug \
+            --disable-docs \
+            --disable-werror
+
+      - name: Compile Orbite Target
+        run: |
+          ninja -C build qemu-system-x86_64
